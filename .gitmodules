@@ -1,0 +1,3 @@
+[submodule "apps/terminal/leash"]
+	path = apps/terminal/leash
+	url = git@github.com:jcubic/leash.git
