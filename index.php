@@ -123,16 +123,30 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
              jQuery(function($) {
                  var counts = {};
                  var windows = Storage.getItem(swift_windows_key) || [];
+                 swift.update_window_data = function(node, data) {
+                     var count = node.data('count');
+                     var name = node.data('name');
+                     for (var i = windows.length; i--;) {
+                         if (windows[i].name === name && count === windows[i].count) {
+                             windows[i].data = $.extend(windows[i].data || {}, data);
+                             Storage.setItem(swift_windows_key, windows);
+                             break;
+                         }
+                     }
+                 };
                  $.fn.app = function(name, options) {
                      var app_window = {
-                         name: name
+                         name: name,
+                         data: {}
                      };
                      counts[name] = counts[name] || 0;
-                     counts[name]++;
+                     var count = ++counts[name];
+                     this.data('count', count);
+                     this.data('name', name);
                      var new_window = true;
                      var dimension;
                      for (var i = windows.length; i--;) {
-                         if (windows[i].name === name && counts[name] === windows[i].count) {
+                         if (windows[i].name === name && count === windows[i].count) {
                              app_window = windows[i];
                              dimension = app_window.dimension;
                              new_window = false;
@@ -155,13 +169,11 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
                              'collision': 'none'
                          }
                      }
-                     console.log(dimension);
                      var settings = $.extend({}, {
                          position: position
                      }, dimension.size || {}, options, {
                          drag: function(e, ui) {
                              dimension.position = ui.position;
-                             console.log(dimension);
                              Storage.setItem(swift_windows_key, windows)
                              if (typeof options.drag === 'function') {
                                  options.drag(e, ui);
@@ -173,14 +185,20 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
                                  width: Math.round(ui.size.width),
                                  height: Math.round(ui.size.height)
                              };
-                             console.log(dimension);
                              Storage.setItem(swift_windows_key, windows);
                              if (typeof options.reisze === 'function') {
                                  options.reisze(e, ui);
                              }
+                         },
+                         close: function() {
+                             for (var i = windows.length; i--;) {
+                                 if (windows[i].name === name && count === windows[i].count) {
+                                     windows.splice(i, 1);
+                                     Storage.setItem(swift_windows_key, windows);
+                                 }
+                             }
                          }
                      });
-                     console.log(settings);
                      return this.dialog(settings);
                  };
                  $(document).on('click', '[data-app]', function() {
@@ -204,7 +222,7 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
                          setTimeout(function() {
                              (Storage.getItem(swift_windows_key) || []).forEach(function(window) {
                                  if (swift.apps[window.name]) {
-                                     swift.apps[window.name].run();
+                                     swift.apps[window.name].run(window);
                                  }
                              });
                          }, 400);
