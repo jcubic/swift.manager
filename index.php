@@ -6,7 +6,8 @@
  *  Released under the MIT license
  *
  */
-require('Service.php');
+
+require('lib/Service.php');
 $swift = new Swift('config.json', getcwd());
 if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
     $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest') {
@@ -38,8 +39,13 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
      .ui-widget-content {
          background: #000;
      }
-     .ui-dialog iframe.ui-dialog-content, .ui-dialog iframe + .mask {
+     .ui-dialog .ui-dialog-content {
          padding: 0;
+     }
+     .browser-widget .content .selection {
+         border-color: #fff;
+     }
+     .ui-dialog .ui-dialog-content, .ui-dialog iframe + .mask {
          width: 100% !important;
      }
      .ui-dialog iframe + .mask {
@@ -79,6 +85,8 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
          right: 0;
      }
     </style>
+    <link href="lib/jquery.filebrowser/css/jquery.filebrowser.min.css" rel="stylesheet"/>
+    <script src="lib/jquery.filebrowser/js/jquery.filebrowser.min.js"></script>
     <script src="apps/terminal/leash/lib/json-rpc.js"></script>
     <script>
      var Storage = {
@@ -118,8 +126,54 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
                  logout: function() {
                      Storage.removeItem(swift_token_key);
                      this.apps.terminal.logout();
-                 }
+                 },
+                 service: service
              };
+             function browse(path, filter) {
+                 return $('<div/>').appendTo('body').browse({
+                     root: '/',
+                     separator: '/',
+                     start_directory: path,
+                     dir: function(path) {
+                         return new Promise(function(resolve, reject) {
+                             service.dir(swift.token, path)(function(err, result) {
+                                 result.files = result.files.filter(function(file) {
+                                     return file.match(filter);
+                                 });
+                                 resolve(result);
+                             });
+                         });
+                     }
+                 });
+             }
+             function open(start_path, filter, callback) {
+                 return new Promise(function(resolve, reject) {
+                     var browser = browse(start_path, filter);
+                     var height = $(window).height() - 100;
+                     browser.dialog({
+                         height: height > 200 ? height : 200,
+                         close: function() {
+                             browser.destroy();
+                             $(this).dialog("destroy").remove();
+                             reject();
+                         },
+                         buttons: {
+                             open: function() {
+                                 var selection = browser.selection();
+                                 if (selection) {
+                                     callback(selection).then(resolve);
+                                 } else {
+                                     reject();
+                                 }
+                                 browser.destroy();
+                                 $(this).dialog("destroy").remove();
+                             }
+                         }
+                     });
+                 });
+             }
+             swift.browse = browse;
+             swift.open = open;
              jQuery(function($) {
                  var counts = {};
                  var windows = Storage.getItem(swift_windows_key) || [];

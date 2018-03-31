@@ -1,3 +1,6 @@
 [submodule "apps/terminal/leash"]
 	path = apps/terminal/leash
 	url = git@github.com:jcubic/leash.git
+[submodule "lib/jquery.filebrowser"]
+	path = lib/jquery.filebrowser
+	url = git@github.com:jcubic/jquery.filebrowser.git
